@@ -4,11 +4,10 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import React, { useEffect, useState } from "react"
+import React, { useState } from "react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@clerk/nextjs"
 import axios from "axios"
-import { loadStripe } from "@stripe/stripe-js"
 import { toast } from "sonner"
 import { TITLE_TAILWIND_CLASS } from "@/utils/constants"
 import { useRouter } from "next/navigation"
@@ -18,10 +17,10 @@ type PricingSwitchProps = {
 }
 
 type PricingCardProps = {
-  user: any
-  handleCheckout: any
-  priceIdMonthly: any
-  priceIdYearly: any
+  user: { id?: string | null } | null | undefined
+  handleCheckout: (priceId: string | undefined, subscription: boolean) => void
+  priceIdMonthly?: string
+  priceIdYearly?: string
   isYearly?: boolean
   title: string
   monthlyPrice?: number
@@ -132,35 +131,22 @@ export default function Pricing() {
   const [isYearly, setIsYearly] = useState<boolean>(false)
   const togglePricingPeriod = (value: string) => setIsYearly(parseInt(value) === 1)
   const { user } = useUser();
-  const [stripePromise, setStripePromise] = useState<Promise<any> | null>(null)
 
-  useEffect(() => {
-    setStripePromise(loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY!))
-  }, [])
-
-  const handleCheckout = async (priceId: string, subscription: boolean) => {
-
+  const handleCheckout = async (priceId: string | undefined, subscription: boolean) => {
     try {
       const { data } = await axios.post(`/api/payments/create-checkout-session`,
         { userId: user?.id, email: user?.emailAddresses?.[0]?.emailAddress, priceId, subscription });
 
-      if (data.sessionId) {
-        const stripe = await stripePromise;
-
-        const response = await stripe?.redirectToCheckout({
-          sessionId: data.sessionId,
-        });
-
-        return response
-      } else {
-        console.error('Failed to create checkout session');
-        toast('Failed to create checkout session')
-        return
+      if (typeof data.url === "string") {
+        window.location.assign(data.url);
+        return;
       }
+
+      console.error('Failed to create checkout session');
+      toast('Failed to create checkout session')
     } catch (error) {
       console.error('Error during checkout:', error);
       toast('Error during checkout')
-      return
     }
   };
 

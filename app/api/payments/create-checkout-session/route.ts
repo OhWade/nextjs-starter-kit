@@ -1,15 +1,15 @@
+import { getStripe } from "@/lib/stripe";
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function POST(req: NextRequest) {
   const { userId, email, priceId, subscription } = await req.json();
 
+  const stripe = getStripe();
+
   if (subscription) {
     try {
       const session = await stripe.checkout.sessions.create({
-        payment_method_types: ["card"],
+        allowed_payment_method_types: ["card"],
         line_items: [{ price: priceId, quantity: 1 }],
         metadata: { userId, email, subscription },
         mode: "subscription",
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
       });
 
 
-      return NextResponse.json({ sessionId: session.id });
+      return NextResponse.json({ sessionId: session.id, url: session.url });
     } catch (error) {
       console.error("Error creating checkout session:", error);
       return NextResponse.json({ error: "Failed to create checkout session" });
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   } else {
     try {
       const session = await stripe.checkout.sessions.create({
-        payment_method_types: ["card"],
+        allowed_payment_method_types: ["card"],
         line_items: [{ price: priceId, quantity: 1 }],
         metadata: { userId, email, subscription },
         mode: "payment",
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
         cancel_url: `${process.env.FRONTEND_URL}/cancel`,
       });
 
-      return NextResponse.json({ sessionId: session.id });
+      return NextResponse.json({ sessionId: session.id, url: session.url });
     } catch (error) {
       console.error("Error creating checkout session:", error);
       return NextResponse.json({ error: "Failed to create checkout session" });

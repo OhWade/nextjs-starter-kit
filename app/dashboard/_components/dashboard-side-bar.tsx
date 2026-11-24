@@ -10,7 +10,6 @@ import {
 } from "lucide-react"
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { FaTasks } from 'react-icons/fa'
 
 export default function DashboardSideBar() {
   const pathname = usePathname();

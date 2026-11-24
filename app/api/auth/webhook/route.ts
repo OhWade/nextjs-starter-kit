@@ -35,15 +35,13 @@ export async function POST(req: Request) {
   // Create a new SVIX instance with your secret.
   const wh = new Webhook(WEBHOOK_SECRET);
 
-  let evt: WebhookEvent;
-
-  // Verify the payload with the headers
+  // Svix 2 verifies the signature and does not return the payload.
   try {
-    evt = wh.verify(body, {
+    wh.verify(body, {
       "svix-id": svix_id,
       "svix-timestamp": svix_timestamp,
       "svix-signature": svix_signature,
-    }) as WebhookEvent;
+    });
   } catch (err) {
     console.error("Error verifying webhook:", err);
     return new Response("Error occured", {
@@ -51,8 +49,8 @@ export async function POST(req: Request) {
     });
   }
 
-  // Get the ID and type
-  const { id } = evt.data;
+  const evt = payload as WebhookEvent;
+
   const eventType = evt.type;
 
 
@@ -71,13 +69,13 @@ export async function POST(req: Request) {
           status: 200,
           message: "User info inserted",
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Request failed";
         return NextResponse.json({
           status: 400,
-          message: error.message,
+          message,
         });
       }
-      break;
 
     case "user.updated":
       try {
@@ -93,13 +91,13 @@ export async function POST(req: Request) {
           status: 200,
           message: "User info updated",
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Request failed";
         return NextResponse.json({
           status: 400,
-          message: error.message,
+          message,
         });
       }
-      break;
 
     default:
       return new Response("Error occured -- unhandeled event type", {

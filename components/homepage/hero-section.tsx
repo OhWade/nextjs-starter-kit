@@ -1,4 +1,5 @@
-import { ArrowRight, Github } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { FaGithub } from 'react-icons/fa';
 import Link from "next/link";
 import { BorderBeam } from "../magicui/border-beam";
 import { Button } from "../ui/button";
@@ -38,7 +39,7 @@ export default function HeroSection() {
                     className='animate-buttonheartbeat border p-2 rounded-full mt-5 hover:dark:bg-black hover:cursor-pointer'
                     aria-label="View NextJS 14 Starter Template on GitHub"
                 >
-                    <Github className='w-5 h-5' aria-hidden="true" />
+                    <FaGithub className='w-5 h-5' aria-hidden="true" />
                 </Link>
             </div>
             <div>

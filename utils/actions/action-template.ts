@@ -1,8 +1,7 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
+import { createSupabaseServerClient } from "@/utils/supabase/server";
 
 export async function actionTemplate() {
   const { userId } = await auth();
@@ -11,16 +10,17 @@ export async function actionTemplate() {
     return "You must be signed in";
   }
 
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = await createSupabaseServerClient();
 
   try {
-    let { data: user, error } = await supabase.from("user").select("*");
+    const { data: user, error } = await supabase.from("user").select("*");
 
     if (user) return user;
 
     if (error) return error;
-  } catch (error: any) {
-    throw new Error(error.message);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Request failed";
+    throw new Error(message);
   }
 
 }

@@ -1,7 +1,7 @@
-"server only";
+import "server-only";
+
 import { userUpdateProps } from "@/utils/types";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createSupabaseServerClient } from "@/utils/supabase/server";
 
 export const userUpdate = async ({
   email,
@@ -10,19 +10,7 @@ export const userUpdate = async ({
   profile_image_url,
   user_id,
 }: userUpdateProps) => {
-  const cookieStore = await cookies();
-
-  const supabase = createServerClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
-  );
+  const supabase = await createSupabaseServerClient();
 
   try {
     const { data, error } = await supabase
@@ -42,7 +30,8 @@ export const userUpdate = async ({
     if (data) return data;
 
     if (error) return error;
-  } catch (error: any) {
-    throw new Error(error.message);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to update user";
+    throw new Error(message);
   }
 };

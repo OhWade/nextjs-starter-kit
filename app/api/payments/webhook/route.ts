@@ -1,32 +1,19 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { getStripe, stripeId } from "@/lib/stripe";
+import { createSupabaseServerClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-
 export async function POST(req: NextRequest) {
-  const cookieStore = await cookies();
-
-  const supabase: any = createServerClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
-  );
+  const supabase = await createSupabaseServerClient();
   const reqText = await req.text();
   return webhooksHandler(reqText, req, supabase);
 }
 
 async function getCustomerEmail(customerId: string): Promise<string | null> {
   try {
-    const customer = await stripe.customers.retrieve(customerId);
-    return (customer as Stripe.Customer).email;
+    const customer = await getStripe().customers.retrieve(customerId);
+    if (customer.deleted) return null;
+    return customer.email;
   } catch (error) {
     console.error("Error fetching customer:", error);
     return null;
@@ -36,7 +23,7 @@ async function getCustomerEmail(customerId: string): Promise<string | null> {
 async function handleSubscriptionEvent(
   event: Stripe.Event,
   type: "created" | "updated" | "deleted",
-  supabase: ReturnType<typeof createServerClient>
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>
 ) {
   const subscription = event.data.object as Stripe.Subscription;
   const customerEmail = await getCustomerEmail(subscription.customer as string);
@@ -48,7 +35,7 @@ async function handleSubscriptionEvent(
     });
   }
 
-  const subscriptionData: any = {
+  const subscriptionData = {
     subscription_id: subscription.id,
     stripe_user_id: subscription.customer,
     status: subscription.status,
@@ -106,7 +93,7 @@ async function handleSubscriptionEvent(
 async function handleInvoiceEvent(
   event: Stripe.Event,
   status: "succeeded" | "failed",
-  supabase: ReturnType<typeof createServerClient>
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>
 ) {
   const invoice = event.data.object as Stripe.Invoice;
   const customerEmail = await getCustomerEmail(invoice.customer as string);
@@ -120,7 +107,7 @@ async function handleInvoiceEvent(
 
   const invoiceData = {
     invoice_id: invoice.id,
-    subscription_id: invoice.subscription as string,
+    subscription_id: stripeId(invoice.parent?.subscription_details?.subscription) ?? "",
     amount_paid: status === "succeeded" ? invoice.amount_paid / 100 : undefined,
     amount_due: status === "failed" ? invoice.amount_due / 100 : undefined,
     currency: invoice.currency,
@@ -148,16 +135,19 @@ async function handleInvoiceEvent(
 
 async function handleCheckoutSessionCompleted(
   event: Stripe.Event,
-  supabase: ReturnType<typeof createServerClient>
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>
 ) {
   const session = event.data.object as Stripe.Checkout.Session;
-  const metadata: any = session?.metadata;
+  const metadata = session.metadata;
 
   if (metadata?.subscription === "true") {
     // This is for subscription payments
-    const subscriptionId = session.subscription;
+    const subscriptionId = stripeId(session.subscription);
     try {
-      await stripe.subscriptions.update(subscriptionId as string, { metadata });
+      if (!subscriptionId) {
+        throw new Error("Checkout session is missing a subscription");
+      }
+      await getStripe().subscriptions.update(subscriptionId, { metadata });
 
       const { error: invoiceError } = await supabase
         .from("invoices")
@@ -198,12 +188,12 @@ async function handleCheckoutSessionCompleted(
         email: metadata?.email,
         amount: session.amount_total! / 100,
         customer_details: JSON.stringify(session.customer_details),
-        payment_intent: session.payment_intent,
+        payment_intent: stripeId(session.payment_intent),
         payment_time: dateTime,
         currency: session.currency,
       };
 
-      const { data: paymentsData, error: paymentsError } = await supabase
+      const { error: paymentsError } = await supabase
         .from("payments")
         .insert([paymentData]);
       if (paymentsError) throw new Error("Error inserting payment");
@@ -233,12 +223,12 @@ async function handleCheckoutSessionCompleted(
 async function webhooksHandler(
   reqText: string,
   request: NextRequest,
-  supabase: ReturnType<typeof createServerClient>
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>
 ): Promise<NextResponse> {
   const sig = request.headers.get("Stripe-Signature");
 
   try {
-    const event = await stripe.webhooks.constructEventAsync(
+    const event = await getStripe().webhooks.constructEventAsync(
       reqText,
       sig!,
       process.env.STRIPE_WEBHOOK_SECRET!

@@ -1,87 +1,92 @@
-# Getting Started
+# Next.js SaaS starter
+
+Next.js App Router starter with Clerk, Supabase, Prisma, Stripe, and Upstash. Application code talks to Supabase with the service role key. Prisma is set up for migrations only. Clerk is the authentication provider.
 
 ## Prerequisites
-- Node.js and yarn/bun installed
-- Accounts and API keys for:
-  - Supabase
-  - Stripe (if using payments)
-  - Clerk (if using authentication)
+
+- Node.js 22.13 or newer
+- npm
+- A Supabase project
+- A Clerk application, if `config.auth.enabled` is true
+- A Stripe account, if `config.payments.enabled` is true
+- An Upstash Redis database, if you wire up `lib/ratelimiter.ts`
 
 ## Setup
 
-1. Clone the repository:
-   ```
-   git clone <repository-url>
-   cd <project-directory>
+1. Install dependencies:
+
+   ```bash
+   npm install
    ```
 
-2. Install dependencies:
-   ```
-   yarn
-   ```
+2. Copy the environment template and fill it in:
 
-3. Set up environment variables:
-   Create a `.env` file in the root directory with the following variables:
-   ```
-   SUPABASE_URL=<your-supabase-project-url>
-   SUPABASE_SERVICE_KEY=<your-supabase-service-key>
-
-   # If using Stripe
-   STRIPE_SECRET_KEY=<your-stripe-secret-key>
-   NEXT_PUBLIC_STRIPE_PRICE_ID=<your-stripe-price-id>
-
-   # If using Clerk
-   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=<your-clerk-publishable-key>
-   CLERK_SECRET_KEY=<your-clerk-secret-key>
-   NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
-   NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-   NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/
-   NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/
+   ```bash
+   cp .env.template .env
    ```
 
-4. Configure features:
-   In `config.ts`, set the desired features:
-   ```typescript
+   | Variable | Used for |
+   | --- | --- |
+   | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk client |
+   | `CLERK_SECRET_KEY` | Clerk server |
+   | `CLERK_WEBHOOK_SECRET` | Svix verification for `POST /api/auth/webhook` |
+   | `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | Clerk sign-in path (`/sign-in`) |
+   | `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | Clerk sign-up path (`/sign-up`) |
+   | `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL` | Redirect after sign-in |
+   | `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL` | Redirect after sign-up |
+   | `SUPABASE_URL` | Supabase project URL |
+   | `SUPABASE_SERVICE_KEY` | Supabase service role key. Server-only |
+   | `DATABASE_URL` | Pooled Postgres URL. Fallback for Prisma Migrate when `DIRECT_URL` is unset |
+   | `DIRECT_URL` | Session or direct Postgres URL. Prisma Migrate uses this |
+   | `UPSTASH_REDIS_REST_URL` | Upstash Redis REST URL |
+   | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST token |
+   | `FRONTEND_URL` | Origin used in Stripe Checkout success and cancel URLs |
+   | `STRIPE_SECRET_KEY` | Stripe server SDK |
+   | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signature |
+   | `NEXT_PUBLIC_STRIPE_PRICE_ID` | Price id used by the sample pricing cards |
+
+3. Turn features on or off in `config.ts`:
+
+   ```ts
    const config = {
      auth: {
-       enabled: true, // Set to false if not using Clerk
+       enabled: true,
      },
      payments: {
-       enabled: true, // Set to false if not using Stripe
-     }
+       enabled: true,
+     },
    };
    ```
 
-5. Set up the database:
-   Run Prisma migrations:
-   ```
+4. Apply the Prisma schema. Prisma 7 reads the migration URL from `prisma.config.ts` (`DIRECT_URL`, then `DATABASE_URL`). The schema file no longer contains `url` or `directUrl`.
+
+   ```bash
    npx prisma migrate dev
    ```
 
-6. Start the development server:
+   Runtime queries in this repo use the Supabase client, not `PrismaClient`. Creating a Prisma 7 client requires a driver adapter such as `@prisma/adapter-pg`. That adapter is not installed.
+
+5. Start the app:
+
+   ```bash
+   npm run dev
    ```
-   yarn dev
-   ```
 
-7. Open your browser and navigate to `http://localhost:3000` to see your application running.
+   Open `http://localhost:3000`.
 
-## Additional Configuration
+## Scripts
 
-- Webhooks: Set up webhooks for Clerk (if using auth) at `/api/auth/webhook` and for Stripe (if using payments) at `/api/payments/webhook`.
-- Customize the landing page, dashboard, and other components as needed.
-- Modify the Prisma schema in `prisma/schema.prisma` if you need to change the database structure.
+- `npm run dev` starts the Next.js dev server
+- `npm run build` creates a production build
+- `npm start` serves the production build
+- `npm run lint` runs ESLint. `npm install` may warn that ESLint 10 sits outside the peer range of plugins bundled by `eslint-config-next`. Next.js 16.4 supports ESLint 10, and `npm run lint` passes.
 
-## Important Security Notes
+## Webhooks
 
-- Enable Row Level Security (RLS) in your Supabase project to ensure data protection at the database level.
-- Always make Supabase calls on the server-side (in API routes or server components) to keep your service key secure.
+- Clerk user sync: `POST /api/auth/webhook`
+- Stripe payments: `POST /api/payments/webhook`
 
-## Learn More
+## Security
 
-Refer to the documentation of the individual technologies used in this project for more detailed information:
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
-- [Supabase Documentation](https://supabase.io/docs)
-- [Prisma Documentation](https://www.prisma.io/docs)
-- [Clerk Documentation](https://clerk.dev/docs) (if using auth)
-- [Stripe Documentation](https://stripe.com/docs) (if using payments)
+- Keep `SUPABASE_SERVICE_KEY` and `STRIPE_SECRET_KEY` on the server. The service role key bypasses Row Level Security.
+- Enable RLS on the Supabase tables. The current server helpers still send the service role key, so RLS does not protect those calls.

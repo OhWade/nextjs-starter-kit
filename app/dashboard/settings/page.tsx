@@ -30,7 +30,7 @@ export default function Settings() {
         <div className='flex flex-col gap-3'>
           <div className='flex flex-col gap-3'>
             <Label>E-mail</Label>
-            <Input disabled defaultValue={user?.user?.emailAddresses?.[0]?.emailAddress!} />
+            <Input disabled defaultValue={user?.user?.emailAddresses?.[0]?.emailAddress ?? ""} />
           </div>
         </div>
       </div>

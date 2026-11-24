@@ -1,10 +1,9 @@
 import { Button } from '@/components/ui/button';
 import NavBar from '@/components/wrapper/navbar';
+import { getStripe } from '@/lib/stripe';
 import Link from 'next/link';
-import Stripe from 'stripe';
 
-// Initialize Stripe with your secret key
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+export const dynamic = "force-dynamic";
 
 export default async function SuccessPage(
   props: {
@@ -12,10 +11,11 @@ export default async function SuccessPage(
   }
 ) {
   const searchParams = await props.searchParams;
+  const sessionId = searchParams.session_id;
 
-  const session = await stripe.checkout.sessions.retrieve(searchParams?.session_id as string);
-
-  const jsonString = JSON.stringify(session, null, 2);
+  if (typeof sessionId === "string") {
+    await getStripe().checkout.sessions.retrieve(sessionId);
+  }
 
   return (
     <main className="flex min-w-screen flex-col items-center justify-between">
