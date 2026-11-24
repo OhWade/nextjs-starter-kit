@@ -1,9 +1,8 @@
-"server only";
+import "server-only";
 
 import { clerkClient } from "@clerk/nextjs/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
-import config from "@/tailwind.config";
+import config from "@/config";
+import { createSupabaseServerClient } from "@/utils/supabase/server";
 
 export const isAuthorized = async (
   userId: string
@@ -24,19 +23,7 @@ export const isAuthorized = async (
     };
   }
 
-  const cookieStore = await cookies();
-
-  const supabase = createServerClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
-  );
+  const supabase = await createSupabaseServerClient();
 
   try {
     const { data, error } = await supabase
@@ -61,10 +48,10 @@ export const isAuthorized = async (
       authorized: false,
       message: "User is not subscribed",
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       authorized: false,
-      message: error.message,
+      message: error instanceof Error ? error.message : "Authorization check failed",
     };
   }
 };

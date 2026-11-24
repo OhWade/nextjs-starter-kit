@@ -16,7 +16,6 @@ import {
 import config from "@/config"
 import { SignOutButton, useUser } from "@clerk/nextjs"
 import {
-    CreditCard,
     LogOut,
     Settings,
     User

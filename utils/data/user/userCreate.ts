@@ -1,7 +1,6 @@
-"server only"
+import "server-only";
 
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { createSupabaseServerClient } from "@/utils/supabase/server";
 import { userCreateProps } from "@/utils/types";
 
 export const userCreate = async ({
@@ -11,19 +10,7 @@ export const userCreate = async ({
   profile_image_url,
   user_id,
 }: userCreateProps) => {
-  const cookieStore = await cookies();
-
-  const supabase = createServerClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
-  );
+  const supabase = await createSupabaseServerClient();
 
   try {
     const { data, error } = await supabase
@@ -44,7 +31,8 @@ export const userCreate = async ({
 
     if (error?.code) return error;
     return data;
-  } catch (error: any) {
-    throw new Error(error.message);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to create user";
+    throw new Error(message);
   }
 };

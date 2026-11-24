@@ -1,5 +1,5 @@
 "use client"
-import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Maximize, Minimize, Pause, Play, Volume2, VolumeX } from 'lucide-react';
 
 interface CustomVideoPlayerProps {
@@ -16,9 +16,7 @@ export const VideoPlayer: React.FC<CustomVideoPlayerProps> = ({ videoSrc }) => {
   const [showControls, setShowControls] = useState<boolean>(true);
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
-  const [lastMouseMoveTime, setLastMouseMoveTime] = useState(Date.now());
-
-  const autoplay = useMemo(() => false, []);
+  const lastMouseMoveTime = useRef(0);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -35,19 +33,20 @@ export const VideoPlayer: React.FC<CustomVideoPlayerProps> = ({ videoSrc }) => {
     video.addEventListener("timeupdate", updateProgress);
     video.addEventListener("ended", handleVideoEnd);
 
-    if (autoplay) {
-      video.play().catch((error) => console.error("Autoplay failed:", error));
-    }
-
     return () => {
       video.removeEventListener("timeupdate", updateProgress);
       video.removeEventListener("ended", handleVideoEnd);
     };
-  }, [autoplay]);
+  }, []);
 
   useEffect(() => {
+    const player = playerRef.current;
+    if (lastMouseMoveTime.current === 0) {
+      lastMouseMoveTime.current = Date.now();
+    }
+
     const handleMouseMove = () => {
-      setLastMouseMoveTime(Date.now());
+      lastMouseMoveTime.current = Date.now();
       setShowControls(true);
     };
 
@@ -59,36 +58,30 @@ export const VideoPlayer: React.FC<CustomVideoPlayerProps> = ({ videoSrc }) => {
 
     const checkMouseInactivity = () => {
       const currentTime = Date.now();
-      if (currentTime - lastMouseMoveTime > 3000 && isFullscreen) {
+      if (currentTime - lastMouseMoveTime.current > 3000 && isFullscreen) {
         setShowControls(false);
       }
     };
 
-    if (playerRef.current) {
-      playerRef.current.addEventListener("mousemove", handleMouseMove);
-      playerRef.current.addEventListener("mouseleave", handleMouseLeave);
-    }
+    player?.addEventListener("mousemove", handleMouseMove);
+    player?.addEventListener("mouseleave", handleMouseLeave);
 
     const inactivityInterval = setInterval(checkMouseInactivity, 1000);
 
     return () => {
-      if (playerRef.current) {
-        playerRef.current.removeEventListener("mousemove", handleMouseMove);
-        playerRef.current.removeEventListener("mouseleave", handleMouseLeave);
-      }
+      player?.removeEventListener("mousemove", handleMouseMove);
+      player?.removeEventListener("mouseleave", handleMouseLeave);
       clearInterval(inactivityInterval);
     };
-  }, [isFullscreen, lastMouseMoveTime]);
-
-  useEffect(() => {
-    if (!isFullscreen) {
-      setShowControls(true);
-    }
-  }, [isFullscreen]);
+  }, [isFullscreen, isPlaying]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const fullscreen = !!document.fullscreenElement;
+      setIsFullscreen(fullscreen);
+      if (!fullscreen) {
+        setShowControls(true);
+      }
     };
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);

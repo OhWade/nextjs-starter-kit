@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export type userCreateProps = z.infer<typeof userCreateSchema>;
 
-const userCreateSchema = z.object({
+export const userCreateSchema = z.object({
   email: z.string().email({ message: "Invalid email" }).describe("user email"),
   first_name: z
     .string()
@@ -24,7 +24,7 @@ const userCreateSchema = z.object({
 
 export type userUpdateProps = z.infer<typeof userUpdateSchema>;
 
-const userUpdateSchema = z.object({
+export const userUpdateSchema = z.object({
   email: z
     .string()
     .email({ message: "Invalid email" })

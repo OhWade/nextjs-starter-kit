@@ -48,7 +48,7 @@ export default function BlogSample() {
                 className="flex flex-col space-y-2 p-4 rounded-md border dark:bg-black"
               >
                 <Image
-                  src={article?.image!}
+                  src={article.image}
                   alt={"blog image"}
                   width={804}
                   height={452}
@@ -58,7 +58,7 @@ export default function BlogSample() {
                   <h2 className="text-md lg:text-lg font-bold">{article?.title}</h2>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {new Date(article?.date!)?.toLocaleDateString()}
+                  {new Date(article.date).toLocaleDateString()}
                 </p>
               </article>
             </Link>

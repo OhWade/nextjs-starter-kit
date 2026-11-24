@@ -5,18 +5,9 @@ import { Button } from '../ui/button';
 import Link from 'next/link';
 
 export default function Footer() {
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-        reset,
-    } = useForm();
+    const { register, handleSubmit } = useForm();
 
-
-    const onSubmit = async (data: any) => {
-
-
-    };
+    const onSubmit = async () => {};
     return (
         <footer className="border-t dark:bg-black">
             <div className="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8">
